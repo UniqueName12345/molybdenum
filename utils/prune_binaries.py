@@ -44,11 +44,12 @@ def _callback(args):
     if not args.pruning_list.exists():
         get_logger().error('Could not find the pruning list: %s', args.pruning_list)
     prune_files = tuple(filter(len, args.pruning_list.read_text(encoding=ENCODING).splitlines()))
-    unremovable_files = prune_dir(args.directory, prune_files)
-    if unremovable_files:
+    if unremovable_files := prune_dir(args.directory, prune_files):
         get_logger().error('%d files could not be pruned.', len(unremovable_files))
-        get_logger().debug('Files could not be pruned:\n%s',
-                           '\n'.join(f for f in unremovable_files))
+        get_logger().debug(
+            'Files could not be pruned:\n%s', '\n'.join(unremovable_files)
+        )
+
         sys.exit(1)
 
 

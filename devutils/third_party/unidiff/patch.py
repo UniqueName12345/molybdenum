@@ -83,7 +83,7 @@ class Line(object):
         return make_str("<Line: %s%s>") % (self.line_type, self.value)
 
     def __str__(self):
-        return "%s%s" % (self.line_type, self.value)
+        return f"{self.line_type}{self.value}"
 
     def __eq__(self, other):
         return (self.source_line_no == other.source_line_no and
@@ -115,7 +115,7 @@ class PatchInfo(list):
     """
 
     def __repr__(self):
-        value = "<PatchInfo: %s>" % self[0].strip()
+        value = f"<PatchInfo: {self[0].strip()}>"
         return make_str(value)
 
     def __str__(self):
@@ -153,9 +153,13 @@ class Hunk(list):
     def __str__(self):
         # section header is optional and thus we output it only if it's present
         head = "@@ -%d,%d +%d,%d @@%s\n" % (
-            self.source_start, self.source_length,
-            self.target_start, self.target_length,
-            ' ' + self.section_header if self.section_header else '')
+            self.source_start,
+            self.source_length,
+            self.target_start,
+            self.target_length,
+            f' {self.section_header}' if self.section_header else '',
+        )
+
         content = ''.join(unicode(line) for line in self)
         return head + content
 
@@ -234,7 +238,7 @@ class PatchedFile(list):
                 valid_line = RE_HUNK_BODY_LINE.match(line)
 
             if not valid_line:
-                raise UnidiffParseError('Hunk diff line expected: %s' % line)
+                raise UnidiffParseError(f'Hunk diff line expected: {line}')
 
             line_type = valid_line.group('line_type')
             if line_type == LINE_TYPE_EMPTY:
@@ -252,9 +256,7 @@ class PatchedFile(list):
                 target_line_no += 1
                 original_line.source_line_no = source_line_no
                 source_line_no += 1
-            elif line_type == LINE_TYPE_NO_NEWLINE:
-                pass
-            else:
+            elif line_type != LINE_TYPE_NO_NEWLINE:
                 original_line = None
 
             # stop parsing if we got past expected number of lines
@@ -280,8 +282,7 @@ class PatchedFile(list):
 
     def _add_no_newline_marker_to_last_hunk(self):
         if not self:
-            raise UnidiffParseError(
-                'Unexpected marker:' + LINE_VALUE_NO_NEWLINE)
+            raise UnidiffParseError(f'Unexpected marker:{LINE_VALUE_NO_NEWLINE}')
         last_hunk = self[-1]
         last_hunk.append(
             Line(LINE_VALUE_NO_NEWLINE + '\n', line_type=LINE_TYPE_NO_NEWLINE))
@@ -297,26 +298,25 @@ class PatchedFile(list):
         """Return the file path abstracted from VCS."""
         if (self.source_file.startswith('a/') and
                 self.target_file.startswith('b/')):
-            filepath = self.source_file[2:]
+            return self.source_file[2:]
         elif (self.source_file.startswith('a/') and
               self.target_file == '/dev/null'):
-            filepath = self.source_file[2:]
+            return self.source_file[2:]
         elif (self.target_file.startswith('b/') and
               self.source_file == '/dev/null'):
-            filepath = self.target_file[2:]
+            return self.target_file[2:]
         else:
-            filepath = self.source_file
-        return filepath
+            return self.source_file
 
     @property
     def added(self):
         """Return the file total added lines."""
-        return sum([hunk.added for hunk in self])
+        return sum(hunk.added for hunk in self)
 
     @property
     def removed(self):
         """Return the file total removed lines."""
-        return sum([hunk.removed for hunk in self])
+        return sum(hunk.removed for hunk in self)
 
     @property
     def is_added_file(self):
@@ -367,20 +367,16 @@ class PatchSet(list):
             if encoding is not None:
                 line = line.decode(encoding)
 
-            # check for source file header
-            is_source_filename = RE_SOURCE_FILENAME.match(line)
-            if is_source_filename:
+            if is_source_filename := RE_SOURCE_FILENAME.match(line):
                 source_file = is_source_filename.group('filename')
                 source_timestamp = is_source_filename.group('timestamp')
                 # reset current file
                 current_file = None
                 continue
 
-            # check for target file header
-            is_target_filename = RE_TARGET_FILENAME.match(line)
-            if is_target_filename:
+            if is_target_filename := RE_TARGET_FILENAME.match(line):
                 if current_file is not None:
-                    raise UnidiffParseError('Target without source: %s' % line)
+                    raise UnidiffParseError(f'Target without source: {line}')
                 target_file = is_target_filename.group('filename')
                 target_timestamp = is_target_filename.group('timestamp')
                 # add current file to PatchSet
@@ -391,19 +387,15 @@ class PatchSet(list):
                 patch_info = None
                 continue
 
-            # check for hunk header
-            is_hunk_header = RE_HUNK_HEADER.match(line)
-            if is_hunk_header:
+            if is_hunk_header := RE_HUNK_HEADER.match(line):
                 if current_file is None:
-                    raise UnidiffParseError('Unexpected hunk found: %s' % line)
+                    raise UnidiffParseError(f'Unexpected hunk found: {line}')
                 current_file._parse_hunk(line, diff, encoding)
                 continue
 
-            # check for no newline marker
-            is_no_newline = RE_NO_NEWLINE_MARKER.match(line)
-            if is_no_newline:
+            if is_no_newline := RE_NO_NEWLINE_MARKER.match(line):
                 if current_file is None:
-                    raise UnidiffParseError('Unexpected marker: %s' % line)
+                    raise UnidiffParseError(f'Unexpected marker: {line}')
                 current_file._add_no_newline_marker_to_last_hunk()
                 continue
 
@@ -455,9 +447,9 @@ class PatchSet(list):
     @property
     def added(self):
         """Return the patch total added lines."""
-        return sum([f.added for f in self])
+        return sum(f.added for f in self)
 
     @property
     def removed(self):
         """Return the patch total removed lines."""
-        return sum([f.removed for f in self])
+        return sum(f.removed for f in self)

@@ -80,8 +80,7 @@ class And:
         self._schema = kw.get('schema', Schema)
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__,
-                           ', '.join(repr(a) for a in self._args))
+        return f"{self.__class__.__name__}({', '.join((repr(a) for a in self._args))})"
 
     def validate(self, data):
         """
@@ -130,10 +129,11 @@ class Regex:
 
     def __init__(self, pattern_str, flags=0, error=None):
         self._pattern_str = pattern_str
-        flags_list = [Regex.NAMES[i] for i, f in  # Name for each bit
-                      enumerate('{0:09b}'.format(flags)) if f != '0']
-
-        if flags_list:
+        if flags_list := [
+            Regex.NAMES[i]
+            for i, f in enumerate('{0:09b}'.format(flags))  # Name for each bit
+            if f != '0'
+        ]:
             self._flags_names = ', flags=' + '|'.join(flags_list)
         else:
             self._flags_names = ''
@@ -203,10 +203,7 @@ def _priority(s):
         return TYPE
     if hasattr(s, 'validate'):
         return VALIDATOR
-    if callable(s):
-        return CALLABLE
-    else:
-        return COMPARABLE
+    return CALLABLE if callable(s) else COMPARABLE
 
 
 class Schema:
@@ -285,8 +282,7 @@ class Schema:
                 missing_keys = required - coverage
                 s_missing_keys = \
                     ', '.join(repr(k) for k in sorted(missing_keys, key=repr))
-                raise \
-                    SchemaMissingKeyError('Missing keys: ' + s_missing_keys, e)
+                raise SchemaMissingKeyError(f'Missing keys: {s_missing_keys}', e)
             if not self._ignore_extra_keys and (len(new) != len(data)):
                 wrong_keys = set(data.keys()) - set(new.keys())
                 s_wrong_keys = \
@@ -378,6 +374,4 @@ class Const(Schema):
 
 
 def _callable_str(callable_):
-    if hasattr(callable_, '__name__'):
-        return callable_.__name__
-    return str(callable_)
+    return callable_.__name__ if hasattr(callable_, '__name__') else str(callable_)

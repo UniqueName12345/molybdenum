@@ -33,11 +33,12 @@ def main():
         disables.append('locally-disabled')
 
     pylint_options = [
-        '--disable={}'.format(','.join(disables)),
+        f"--disable={','.join(disables)}",
         '--jobs=4',
         '--score=n',
         '--persistent=n',
     ]
+
 
     ignore_prefixes = [
         ('third_party', ),

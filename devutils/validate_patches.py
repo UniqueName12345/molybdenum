@@ -42,8 +42,7 @@ try:
         def sleep_for_retry(self, response=None):
             """Sleeps for Retry-After, and logs the sleep time"""
             if response:
-                retry_after = self.get_retry_after(response)
-                if retry_after:
+                if retry_after := self.get_retry_after(response):
                     get_logger().info(
                         'Got HTTP status %s with Retry-After header. Retrying after %s seconds...',
                         response.status, retry_after)
@@ -110,8 +109,9 @@ class _DepsNodeVisitor(ast.NodeVisitor):
             if isinstance(node, ast_type):
                 super().generic_visit(node)
                 return
-        raise _UnexpectedSyntaxError('Unexpected {} at line {}, column {}'.format(
-            type(node).__name__, node.lineno, node.col_offset))
+        raise _UnexpectedSyntaxError(
+            f'Unexpected {type(node).__name__} at line {node.lineno}, column {node.col_offset}'
+        )
 
 
 def _validate_deps(deps_text):
@@ -148,8 +148,8 @@ def _download_googlesource_file(download_session, repo_url, version, relative_pa
     googlesource.com repo as a string.
     """
     if 'googlesource.com' not in repo_url:
-        raise ValueError('Repository URL is not a googlesource.com URL: {}'.format(repo_url))
-    full_url = repo_url + '/+/{}/{}?format=TEXT'.format(version, str(relative_path))
+        raise ValueError(f'Repository URL is not a googlesource.com URL: {repo_url}')
+    full_url = repo_url + f'/+/{version}/{str(relative_path)}?format=TEXT'
     get_logger().debug('Downloading: %s', full_url)
     response = download_session.get(full_url)
     if response.status_code == 404:
@@ -175,7 +175,7 @@ def _get_dep_value_url(deps_globals, dep_value):
         # Probably a Python format string
         url = url.format(**deps_globals['vars'])
     if url.count('@') != 1:
-        raise _PatchValidationError('Invalid number of @ symbols in URL: {}'.format(url))
+        raise _PatchValidationError(f'Invalid number of @ symbols in URL: {url}')
     return url
 
 
@@ -203,7 +203,7 @@ def _process_deps_entries(deps_globals, child_deps_tree, child_path, deps_use_re
                     grandchild_deps_tree = recursedeps_item_depsfile
         if grandchild_deps_tree is None:
             # This dep is not recursive; i.e. it is fully loaded
-            grandchild_deps_tree = dict()
+            grandchild_deps_tree = {}
         child_deps_tree[dep_path] = (*url.split('@'), grandchild_deps_tree)
 
 
@@ -214,7 +214,7 @@ def _get_child_deps_tree(download_session, current_deps_tree, child_path, deps_u
         # Load unloaded DEPS
         deps_globals = _parse_deps(
             _download_googlesource_file(download_session, repo_url, version, child_deps_tree))
-        child_deps_tree = dict()
+        child_deps_tree = {}
         current_deps_tree[child_path] = (repo_url, version, child_deps_tree)
         deps_use_relative_paths = deps_globals.get('use_relative_paths', False)
         _process_deps_entries(deps_globals, child_deps_tree, child_path, deps_use_relative_paths)
@@ -225,8 +225,9 @@ def _get_last_chromium_modification():
     """Returns the last modification date of the chromium-browser-official tar file"""
     with _get_requests_session() as session:
         response = session.head(
-            'https://storage.googleapis.com/chromium-browser-official/chromium-{}.tar.xz'.format(
-                get_chromium_version()))
+            f'https://storage.googleapis.com/chromium-browser-official/chromium-{get_chromium_version()}.tar.xz'
+        )
+
         response.raise_for_status()
         return email.utils.parsedate_to_datetime(response.headers['Last-Modified'])
 
@@ -342,7 +343,7 @@ def _get_target_file_deps_node(download_session, root_deps_tree, target_file):
             current_deps_tree, deps_use_relative_paths = _get_child_deps_tree(
                 download_session, current_deps_tree, child_path, deps_use_relative_paths)
             break
-    assert not current_node is None
+    assert current_node is not None
     return current_node, current_relative_path
 
 
@@ -396,11 +397,13 @@ def _initialize_deps_tree():
 
     download_session is an active requests.Session() object
     """
-    root_deps_tree = {
-        _SRC_PATH: ('https://chromium.googlesource.com/chromium/src.git', get_chromium_version(),
-                    'DEPS')
+    return {
+        _SRC_PATH: (
+            'https://chromium.googlesource.com/chromium/src.git',
+            get_chromium_version(),
+            'DEPS',
+        )
     }
-    return root_deps_tree
 
 
 def _retrieve_remote_files(file_iter):
@@ -413,7 +416,7 @@ def _retrieve_remote_files(file_iter):
     Returns a dict of relative UNIX path strings to a list of lines in the file as strings
     """
 
-    files = dict()
+    files = {}
 
     root_deps_tree = _initialize_deps_tree()
 
@@ -461,7 +464,7 @@ def _retrieve_local_files(file_iter, source_dir):
 
     Returns a dict of relative UNIX path strings to a list of lines in the file as strings
     """
-    files = dict()
+    files = {}
     for file_path in file_iter:
         try:
             raw_content = (source_dir / file_path).read_bytes()
@@ -475,7 +478,7 @@ def _retrieve_local_files(file_iter, source_dir):
             except UnicodeDecodeError:
                 continue
         if not content:
-            raise UnicodeDecodeError('Unable to decode with any encoding: %s' % file_path)
+            raise UnicodeDecodeError(f'Unable to decode with any encoding: {file_path}')
         files[file_path] = content.split('\n')
     if not files:
         get_logger().error('All files used by patches are missing!')
@@ -490,7 +493,7 @@ def _modify_file_lines(patched_file, file_lines):
     for hunk in patched_file:
         # Validate hunk will match
         if not hunk.is_valid():
-            raise _PatchValidationError('Hunk is not valid: {}'.format(repr(hunk)))
+            raise _PatchValidationError(f'Hunk is not valid: {repr(hunk)}')
         line_cursor = hunk.target_start - 1
         for line in hunk:
             normalized_line = line.value.rstrip('\n')
@@ -500,8 +503,9 @@ def _modify_file_lines(patched_file, file_lines):
             elif line.is_removed:
                 if normalized_line != file_lines[line_cursor]:
                     raise _PatchValidationError(
-                        "Line '{}' does not match removal line '{}' from patch".format(
-                            file_lines[line_cursor], normalized_line))
+                        f"Line '{file_lines[line_cursor]}' does not match removal line '{normalized_line}' from patch"
+                    )
+
                 del file_lines[line_cursor]
             elif line.is_context:
                 if not normalized_line and line_cursor == len(file_lines):
@@ -509,8 +513,9 @@ def _modify_file_lines(patched_file, file_lines):
                     break
                 if normalized_line != file_lines[line_cursor]:
                     raise _PatchValidationError(
-                        "Line '{}' does not match context line '{}' from patch".format(
-                            file_lines[line_cursor], normalized_line))
+                        f"Line '{file_lines[line_cursor]}' does not match context line '{normalized_line}' from patch"
+                    )
+
                 line_cursor += 1
             else:
                 assert line.line_type in (LINE_TYPE_EMPTY, LINE_TYPE_NO_NEWLINE)
@@ -578,13 +583,6 @@ def _test_patches(series_iter, patch_cache, files_under_test):
                         'Output of "patch --dry-run" for this patch on this file:\n%s',
                         _dry_check_patched_file(patched_file, orig_file_content))
                 return True
-            except: #pylint: disable=bare-except
-                get_logger().warning('Patch failed validation: %s', patch_path_str)
-                get_logger().debug(
-                    'Specifically, file "%s" caused exception while applying:',
-                    patched_file.path,
-                    exc_info=True)
-                return True
     return False
 
 
@@ -595,7 +593,7 @@ def _load_all_patches(series_iter, patches_dir):
     - dict of relative UNIX path strings to unidiff.PatchSet
     """
     had_failure = False
-    unidiff_dict = dict()
+    unidiff_dict = {}
     for relative_path in series_iter:
         if relative_path in unidiff_dict:
             continue
@@ -686,12 +684,12 @@ def main():
         if args.cache_remote.parent.exists():
             args.cache_remote.mkdir()
         else:
-            parser.error('Parent of cache path {} does not exist'.format(args.cache_remote))
+            parser.error(f'Parent of cache path {args.cache_remote} does not exist')
 
     if not args.series.is_file():
-        parser.error('--series path is not a file or not found: {}'.format(args.series))
+        parser.error(f'--series path is not a file or not found: {args.series}')
     if not args.patches.is_dir():
-        parser.error('--patches path is not a directory or not found: {}'.format(args.patches))
+        parser.error(f'--patches path is not a directory or not found: {args.patches}')
 
     series_iterable = tuple(parse_series(args.series))
     had_failure, patch_cache = _load_all_patches(series_iterable, args.patches)

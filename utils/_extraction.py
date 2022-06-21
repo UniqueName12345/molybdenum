@@ -97,12 +97,12 @@ def _process_relative_to(unpack_root, relative_to):
 
 def _extract_tar_with_7z(binary, archive_path, output_dir, relative_to):
     get_logger().debug('Using 7-zip extractor')
-    if not relative_to is None and (output_dir / relative_to).exists():
+    if relative_to is not None and (output_dir / relative_to).exists():
         get_logger().error('Temporary unpacking directory already exists: %s',
                            output_dir / relative_to)
         raise ExtractionError()
     cmd1 = (binary, 'x', str(archive_path), '-so')
-    cmd2 = (binary, 'x', '-si', '-aoa', '-ttar', '-o{}'.format(str(output_dir)))
+    cmd2 = binary, 'x', '-si', '-aoa', '-ttar', f'-o{str(output_dir)}'
     get_logger().debug('7z command line: %s | %s', ' '.join(cmd1), ' '.join(cmd2))
 
     proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
@@ -238,7 +238,7 @@ def extract_tar_file(archive_path, output_dir, relative_to, extractors=None):
     elif current_platform == PlatformEnum.UNIX:
         # NOTE: 7-zip isn't an option because it doesn't preserve file permissions
         tar_bin = _find_extractor_by_cmd(extractors.get(ExtractorEnum.TAR))
-        if not tar_bin is None:
+        if tar_bin is not None:
             _extract_tar_with_tar(tar_bin, archive_path, output_dir, relative_to)
             return
     else:
@@ -273,17 +273,17 @@ def extract_with_7z(
         extractors = DEFAULT_EXTRACTORS
     sevenzip_cmd = extractors.get(ExtractorEnum.SEVENZIP)
     if sevenzip_cmd == USE_REGISTRY:
-        if not get_running_platform() == PlatformEnum.WINDOWS:
+        if get_running_platform() != PlatformEnum.WINDOWS:
             get_logger().error('"%s" for 7-zip is only available on Windows', sevenzip_cmd)
             raise ExtractionError()
         sevenzip_cmd = str(_find_7z_by_registry())
     sevenzip_bin = _find_extractor_by_cmd(sevenzip_cmd)
 
-    if not relative_to is None and (output_dir / relative_to).exists():
+    if relative_to is not None and (output_dir / relative_to).exists():
         get_logger().error('Temporary unpacking directory already exists: %s',
                            output_dir / relative_to)
         raise ExtractionError()
-    cmd = (sevenzip_bin, 'x', str(archive_path), '-aoa', '-o{}'.format(str(output_dir)))
+    cmd = sevenzip_bin, 'x', str(archive_path), '-aoa', f'-o{str(output_dir)}'
     get_logger().debug('7z command line: %s', ' '.join(cmd))
 
     result = subprocess.run(cmd)
@@ -317,13 +317,13 @@ def extract_with_winrar(
         extractors = DEFAULT_EXTRACTORS
     winrar_cmd = extractors.get(ExtractorEnum.WINRAR)
     if winrar_cmd == USE_REGISTRY:
-        if not get_running_platform() == PlatformEnum.WINDOWS:
+        if get_running_platform() != PlatformEnum.WINDOWS:
             get_logger().error('"%s" for WinRAR is only available on Windows', winrar_cmd)
             raise ExtractionError()
         winrar_cmd = str(_find_winrar_by_registry())
     winrar_bin = _find_extractor_by_cmd(winrar_cmd)
 
-    if not relative_to is None and (output_dir / relative_to).exists():
+    if relative_to is not None and (output_dir / relative_to).exists():
         get_logger().error('Temporary unpacking directory already exists: %s',
                            output_dir / relative_to)
         raise ExtractionError()

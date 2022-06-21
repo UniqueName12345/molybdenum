@@ -91,7 +91,7 @@ def _substitute_path(path, regex_iter):
     """
     if not os.access(path, os.W_OK):
         # If the patch cannot be written to, it cannot be opened for updating
-        print(str(path) + " cannot be opened for writing! Adding write permission...")
+        print(f"{str(path)} cannot be opened for writing! Adding write permission...")
         path.chmod(path.stat().st_mode | stat.S_IWUSR)
     with path.open('r+b') as input_file:
         original_content = input_file.read()
@@ -106,7 +106,7 @@ def _substitute_path(path, regex_iter):
             except UnicodeDecodeError:
                 continue
         if not content:
-            raise UnicodeDecodeError('Unable to decode with any encoding: %s' % path)
+            raise UnicodeDecodeError(f'Unable to decode with any encoding: {path}')
         file_subs = 0
         for regex_pair in regex_iter:
             content, sub_count = regex_pair.pattern.subn(regex_pair.replacement, content)
@@ -206,9 +206,7 @@ def apply_substitution(regex_path, files_path, source_tree, domainsub_cache):
     resolved_tree = source_tree.resolve()
     regex_pairs = DomainRegexList(regex_path).regex_pairs
     fileindex_content = io.BytesIO()
-    with tarfile.open(
-            str(domainsub_cache), 'w:%s' % domainsub_cache.suffix[1:],
-            compresslevel=1) as cache_tar:
+    with tarfile.open(str(domainsub_cache), f'w:{domainsub_cache.suffix[1:]}', compresslevel=1) as cache_tar:
         for relative_path in filter(len, files_path.read_text().splitlines()):
             if _INDEX_HASH_DELIMITER in relative_path:
                 # Cache tar will be incomplete; remove it for convenience

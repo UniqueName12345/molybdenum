@@ -31,22 +31,22 @@ class ChangeDir:
 
 def run_pylint(module_path, pylint_options, ignore_prefixes=tuple()):
     """Runs Pylint. Returns a boolean indicating success"""
-    pylint_stats = Path('/run/user/{}/pylint_stats'.format(os.getuid()))
+    pylint_stats = Path(f'/run/user/{os.getuid()}/pylint_stats')
     if not pylint_stats.parent.is_dir(): #pylint: disable=no-member
         pylint_stats = Path('/run/shm/pylint_stats')
     os.environ['PYLINTHOME'] = str(pylint_stats)
 
-    input_paths = list()
+    input_paths = []
     if not module_path.exists():
         print('ERROR: Cannot find', module_path)
         exit(1)
     if module_path.is_dir():
         for path in module_path.rglob('*.py'):
-            ignore_matched = False
-            for prefix in ignore_prefixes:
-                if path.parts[:len(prefix)] == prefix:
-                    ignore_matched = True
-                    break
+            ignore_matched = any(
+                path.parts[: len(prefix)] == prefix
+                for prefix in ignore_prefixes
+            )
+
             if ignore_matched:
                 continue
             input_paths.append(str(path))
@@ -76,7 +76,7 @@ def main():
     args = parser.parse_args()
 
     if not args.module_path.exists():
-        print('ERROR: Module path "{}" does not exist'.format(args.module_path))
+        print(f'ERROR: Module path "{args.module_path}" does not exist')
         exit(1)
 
     disables = [
@@ -90,11 +90,12 @@ def main():
         disables.append('locally-disabled')
 
     pylint_options = [
-        '--disable={}'.format(','.join(disables)),
+        f"--disable={','.join(disables)}",
         '--jobs=4',
         '--score=n',
         '--persistent=n',
     ]
+
 
     if not run_pylint(args.module_path, pylint_options):
         exit(1)

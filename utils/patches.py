@@ -17,16 +17,13 @@ from _common import get_logger, parse_series, add_common_params
 
 def _find_patch_from_env():
     patch_bin_path = None
-    patch_bin_env = os.environ.get('PATCH_BIN')
-    if patch_bin_env:
+    if patch_bin_env := os.environ.get('PATCH_BIN'):
         patch_bin_path = Path(patch_bin_env)
         if patch_bin_path.exists():
             get_logger().debug('Found PATCH_BIN with path "%s"', patch_bin_path)
-        else:
-            patch_which = shutil.which(patch_bin_env)
-            if patch_which:
-                get_logger().debug('Found PATCH_BIN for command with path "%s"', patch_which)
-                patch_bin_path = Path(patch_which)
+        elif patch_which := shutil.which(patch_bin_env):
+            get_logger().debug('Found PATCH_BIN for command with path "%s"', patch_which)
+            patch_bin_path = Path(patch_which)
     else:
         get_logger().debug('PATCH_BIN env variable is not set')
     return patch_bin_path
@@ -158,21 +155,21 @@ def merge_patches(source_iter, destination, prepend=False):
     series = []
     known_paths = set()
     if destination.exists():
-        if prepend:
-            if not (destination / 'series').exists():
-                raise FileNotFoundError(
-                    'Could not find series file in existing destination: {}'.format(
-                        destination / 'series'))
-            known_paths.update(generate_patches_from_series(destination))
-        else:
-            raise FileExistsError('destination already exists: {}'.format(destination))
+        if not prepend:
+            raise FileExistsError(f'destination already exists: {destination}')
+        if not (destination / 'series').exists():
+            raise FileNotFoundError(
+                f"Could not find series file in existing destination: {destination / 'series'}"
+            )
+
+        known_paths.update(generate_patches_from_series(destination))
     for source_dir in source_iter:
         patch_paths = tuple(generate_patches_from_series(source_dir))
-        patch_intersection = known_paths.intersection(patch_paths)
-        if patch_intersection:
+        if patch_intersection := known_paths.intersection(patch_paths):
             raise FileExistsError(
-                'Patches from {} have conflicting paths with other sources: {}'.format(
-                    source_dir, patch_intersection))
+                f'Patches from {source_dir} have conflicting paths with other sources: {patch_intersection}'
+            )
+
         series.extend(patch_paths)
         _copy_files(patch_paths, source_dir, destination)
     if prepend and (destination / 'series').exists():

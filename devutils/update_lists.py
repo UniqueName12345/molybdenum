@@ -140,8 +140,7 @@ class UnusedPatterns: #pylint: disable=too-few-public-methods
         """
         have_unused = False
         for name in self._all_names:
-            current_set = getattr(self, name, None)
-            if current_set:
+            if current_set := getattr(self, name, None):
                 get_logger().error('Unused from %s: %s', name.upper(), current_set)
                 have_unused = True
         return have_unused
@@ -212,7 +211,7 @@ def _check_regex_match(file_path, search_regex):
                 break
             except UnicodeDecodeError:
                 continue
-        if not search_regex.search(content) is None:
+        if search_regex.search(content) is not None:
             return True
     return False
 

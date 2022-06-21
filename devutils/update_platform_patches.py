@@ -107,14 +107,14 @@ def unmerge_platform_patches(platform_patches_dir):
         return False
     orig_series = (platform_patches_dir / _SERIES_ORIG).read_text(encoding=ENCODING).splitlines()
     # patch path -> list of lines after patch path and before next patch path
-    path_comments = dict()
+    path_comments = {}
     # patch path -> inline comment for patch
-    path_inline_comments = dict()
+    path_inline_comments = {}
     previous_path = None
     for partial_path in orig_series:
         if not partial_path or partial_path.startswith('#'):
             if partial_path not in path_comments:
-                path_comments[previous_path] = list()
+                path_comments[previous_path] = []
             path_comments[previous_path].append(partial_path)
         else:
             path_parts = partial_path.split(' #', maxsplit=1)
@@ -135,7 +135,10 @@ def unmerge_platform_patches(platform_patches_dir):
     while series_index < len(new_series):
         current_path = new_series[series_index]
         if current_path in path_inline_comments:
-            new_series[series_index] = current_path + ' #' + path_inline_comments[current_path]
+            new_series[
+                series_index
+            ] = f'{current_path} #{path_inline_comments[current_path]}'
+
         if current_path in path_comments:
             new_series.insert(series_index + 1, '\n'.join(path_comments[current_path]))
             series_index += 1

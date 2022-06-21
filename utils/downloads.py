@@ -90,13 +90,12 @@ class DownloadInfo: #pylint: disable=too-few-public-methods
             if name == 'hashes':
                 hashes_dict = {}
                 for hash_name in (*self._hashes, 'hash_url'):
-                    value = self._section_dict.get(hash_name, fallback=None)
-                    if value:
+                    if value := self._section_dict.get(hash_name, fallback=None):
                         if hash_name == 'hash_url':
                             value = value.split(DownloadInfo.hash_url_delimiter)
                         hashes_dict[hash_name] = value
                 return hashes_dict
-            raise AttributeError('"{}" has no attribute "{}"'.format(type(self).__name__, name))
+            raise AttributeError(f'"{type(self).__name__}" has no attribute "{name}"')
 
     def _parse_data(self, path):
         """
@@ -183,9 +182,7 @@ class _UrlRetrieveReportHook: #pylint: disable=too-few-public-methods
 
 
 def _download_via_urllib(url, file_path, show_progress, disable_ssl_verification):
-    reporthook = None
-    if show_progress:
-        reporthook = _UrlRetrieveReportHook()
+    reporthook = _UrlRetrieveReportHook() if show_progress else None
     if disable_ssl_verification:
         import ssl
         # TODO: Remove this or properly implement disabling SSL certificate verification
@@ -212,7 +209,7 @@ def _download_if_needed(file_path, url, show_progress, disable_ssl_verification)
         return
 
     # File name for partially download file
-    tmp_file_path = file_path.with_name(file_path.name + '.partial')
+    tmp_file_path = file_path.with_name(f'{file_path.name}.partial')
 
     if tmp_file_path.exists():
         get_logger().debug('Resuming downloading URL %s ...', url)
@@ -253,7 +250,7 @@ def _get_hash_pairs(download_properties, cache_dir):
             if hash_processor == 'chromium':
                 yield from _chromium_hashes_generator(cache_dir / hash_filename)
             else:
-                raise ValueError('Unknown hash_url processor: %s' % hash_processor)
+                raise ValueError(f'Unknown hash_url processor: {hash_processor}')
         else:
             yield entry_type, entry_value
 
@@ -305,7 +302,7 @@ def check_downloads(download_info, cache_dir):
         for hash_name, hash_hex in _get_hash_pairs(download_properties, cache_dir):
             get_logger().debug('Verifying %s hash...', hash_name)
             hasher = hashlib.new(hash_name, data=archive_data)
-            if not hasher.hexdigest().lower() == hash_hex.lower():
+            if hasher.hexdigest().lower() != hash_hex.lower():
                 raise HashMismatchError(download_path)
 
 
