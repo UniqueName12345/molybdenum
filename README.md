@@ -2,7 +2,7 @@
 
 NOTE: We have switched to using a regular chromium base, with removed chrome tracking. Link will be up soon.
 
-The old (archived) text is below
+The old (archived) text is below!
 
 # Molybdenum (old)
 
